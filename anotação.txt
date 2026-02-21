@@ -1,0 +1,19 @@
+Crie venv e instale pacotes:
+{
+    python3 -m venv venv
+    source venv/bin/activate
+}
+
+Rode seu app:
+{
+    fastapi dev main.py
+    or
+    uvicorn main:app --reload
+}
+
+
+Instale os pacotes básicos:
+{
+    pip install fastapi "uvicorn[standard]"
+    pip install pydantic
+}
