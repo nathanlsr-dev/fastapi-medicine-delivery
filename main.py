@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, status # type: ignore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # type: ignore
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
@@ -8,7 +9,7 @@ from pydantic import BaseModel # type: ignore
 from passlib.context import CryptContext # type: ignore
 from jose import JWTError, jwt # type: ignore
 from dotenv import load_dotenv # type: ignore
-from models import Patient, Delivery, Invoice
+from models import Patient, Delivery, Invoice, PatientUpdate, DeliveryUpdate
 from database import patients_db, deliveries_db, next_delivery_id, next_patient_id, save_data, PATIENTS_FILE, DELIVERIES_FILE
 
 load_dotenv()
@@ -133,22 +134,65 @@ async def create_delivery(
     return delivery
 
 @app.get("/deliveries/")
-async def list_deliveries():
-    return deliveries_db
+async def list_deliveries(
+    patient_id: Optional[int] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 10
+):
+    filtered = deliveries_db
+    
+    if patient_id is not None:
+        filtered = [d for d in filtered if d["patient_id"] == patient_id]    
+    if status is not None:
+        filtered = [d for d in filtered if d["status"] == status]
+        
+    return filtered[skip:skip + limit]
+
+@app.put("/patients/{patient_id}", response_model=Patient)
+async def update_patient(
+    patient_id: int,
+    update_data: PatientUpdate,
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    for i, existing in enumerate(patients_db):
+        if existing["id"] == patient_id:
+            # Converte pra dict ignorando campos não enviados e None
+            update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
+            # Atualiza apenas os campos que vieram
+            updated = {**existing, **update_dict}
+            patients_db[i] = updated
+            save_data(patients_db, PATIENTS_FILE)
+            return updated
+    raise HTTPException(status_code=404, detail="Patient not found")
+
 
 @app.put("/deliveries/{delivery_id}", response_model=Delivery)
 async def update_delivery(
     delivery_id: int,
-    update: Delivery,
+    update_data: DeliveryUpdate,
     current_user: Annotated[dict, Depends(get_current_user)]
 ):
     for i, existing in enumerate(deliveries_db):
         if existing["id"] == delivery_id:
-            updated = {**existing, **update.dict(exclude_unset=True)}
+            update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
+            updated = {**existing, **update_dict}
             deliveries_db[i] = updated
             save_data(deliveries_db, DELIVERIES_FILE)
             return updated
     raise HTTPException(status_code=404, detail="Delivery not found")
+
+@app.delete("/patients/{patient_id}")
+async def delete_patient(
+    patient_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    for i, patient in enumerate(patients_db):
+        if patient["id"] == patient_id:
+            patients_db.pop(i)
+            save_data(patients_db, PATIENTS_FILE)
+            return {"message": f"Patient {patient_id} deleted successfully"}
+    raise HTTPException(status_code=404, detail="Patient not found")
 
 @app.delete("/deliveries/{delivery_id}")
 async def delete_delivery(
