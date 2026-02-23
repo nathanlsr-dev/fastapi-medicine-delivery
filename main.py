@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, status # type: ignore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # type: ignore
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from sqlalchemy.orm import Session
+from db import get_db, PatientDB, DeliveryDB
 from pydantic import BaseModel # type: ignore
 from passlib.context import CryptContext # type: ignore
 from jose import JWTError, jwt # type: ignore
@@ -108,13 +110,14 @@ async def root():
 @app.post("/patients/", response_model=Patient)
 async def create_patient(
     patient: Patient,
-    current_user: Annotated[dict, Depends(get_current_user)]
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Session = Depends(get_db)
 ):
-    global next_patient_id
-    patient.id = next_patient_id
-    patients_db.append(patient.dict())
-    save_data(patients_db, PATIENTS_FILE) # Save patients
-    next_patient_id += 1
+    db_patient = PatientDB(**patient.dict())
+    db.add(db_patient)
+    db.commit()
+    db.refresh(db_patient)
+    patient.id = db_patient.id
     return patient
 
 @app.get("/patients/")
@@ -124,13 +127,14 @@ async def list_patients():
 @app.post("/deliveries/", response_model=Delivery)
 async def create_delivery(
     delivery: Delivery,
-    current_user: Annotated[dict, Depends(get_current_user)]
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Session = Depends(get_db)
 ):
-    global next_delivery_id
-    delivery.id = next_delivery_id
-    deliveries_db.append(delivery.dict())
-    save_data(deliveries_db, DELIVERIES_FILE) # Save deliveries
-    next_delivery_id += 1
+    db_delivery = DeliveryDB(**delivery.dict())
+    db.add(db_delivery)
+    db.commit()
+    db.refresh(db_delivery)
+    delivery.id = db_delivery.id    
     return delivery
 
 @app.get("/deliveries/")
@@ -179,9 +183,7 @@ async def update_patient(
 ):
     for i, existing in enumerate(patients_db):
         if existing["id"] == patient_id:
-            # Converte pra dict ignorando campos não enviados e None
             update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
-            # Atualiza apenas os campos que vieram
             updated = {**existing, **update_dict}
             patients_db[i] = updated
             save_data(patients_db, PATIENTS_FILE)
