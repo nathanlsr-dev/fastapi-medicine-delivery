@@ -137,16 +137,38 @@ async def create_delivery(
 async def list_deliveries(
     patient_id: Optional[int] = None,
     status: Optional[str] = None,
+    emission_date_from: Optional[datetime] = None,
+    emission_date_to: Optional[datetime] = None,
+    delivery_date_from: Optional[datetime] = None,
+    delivery_date_to: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 10
 ):
     filtered = deliveries_db
     
+    # Filtro por paciente
     if patient_id is not None:
-        filtered = [d for d in filtered if d["patient_id"] == patient_id]    
+        filtered = [d for d in filtered if d["patient_id"] == patient_id]
+    
+    # Filtro por status
     if status is not None:
         filtered = [d for d in filtered if d["status"] == status]
-        
+    
+    # Filtro por data de emissão da nota fiscal
+    if emission_date_from is not None:
+        filtered = [d for d in filtered if datetime.fromisoformat(d["invoice"]["emission_date"]) >= emission_date_from]
+    
+    if emission_date_to is not None:
+        filtered = [d for d in filtered if datetime.fromisoformat(d["invoice"]["emission_date"]) <= emission_date_to]
+    
+    # Filtro por data de entrega
+    if delivery_date_from is not None:
+        filtered = [d for d in filtered if d["delivery_date"] and datetime.fromisoformat(d["delivery_date"]) >= delivery_date_from]
+    
+    if delivery_date_to is not None:
+        filtered = [d for d in filtered if d["delivery_date"] and datetime.fromisoformat(d["delivery_date"]) <= delivery_date_to]
+    
+    # Paginação
     return filtered[skip:skip + limit]
 
 @app.put("/patients/{patient_id}", response_model=Patient)
