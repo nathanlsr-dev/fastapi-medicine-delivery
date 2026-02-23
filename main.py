@@ -1,7 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-
 from fastapi import FastAPI, Depends, HTTPException, status # type: ignore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # type: ignore
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
@@ -9,9 +8,8 @@ from pydantic import BaseModel # type: ignore
 from passlib.context import CryptContext # type: ignore
 from jose import JWTError, jwt # type: ignore
 from dotenv import load_dotenv # type: ignore
-
 from models import Patient, Delivery, Invoice
-from database import patients_db, deliveries_db, next_delivery_id, save_deliveries
+from database import patients_db, deliveries_db, next_delivery_id, next_patient_id, save_data, PATIENTS_FILE, DELIVERIES_FILE
 
 load_dotenv()
 
@@ -107,8 +105,11 @@ async def create_patient(
     patient: Patient,
     current_user: Annotated[dict, Depends(get_current_user)]
 ):
-    patient.id = len(patients_db) + 1
+    global next_patient_id
+    patient.id = next_patient_id
     patients_db.append(patient.dict())
+    save_data(patients_db, PATIENTS_FILE) # Save patients
+    next_patient_id += 1
     return patient
 
 @app.get("/patients/")
@@ -123,7 +124,7 @@ async def create_delivery(
     global next_delivery_id
     delivery.id = next_delivery_id
     deliveries_db.append(delivery.dict())
-    save_deliveries(deliveries_db)
+    save_data(deliveries_db, DELIVERIES_FILE) # Save deliveries
     next_delivery_id += 1
     return delivery
 
