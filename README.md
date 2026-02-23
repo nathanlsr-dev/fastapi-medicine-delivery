@@ -22,8 +22,8 @@ A simple, secure, and scalable RESTful API for managing medicine deliveries, bui
 - JSON file persistence (temporary, will migrate to PostgreSQL + SQLAlchemy)
 
 ## Live Demo
-- **Swagger UI (interactive docs)**: https://nathan-fastapi-api.onrender.com/docs (use username: `admin`, password from environment)
-- **API Root**: https://nathan-fastapi-api.onrender.com/
+- **Swagger UI (interactive docs)**: https://fastapi-medicine-delivery.onrender.com/docs (use username: `admin`, password from environment)
+- **API Root**: https://fastapi-medicine-delivery.onrender.com/
 
 ## Local Setup
 1. Clone the repository:
