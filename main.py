@@ -100,6 +100,10 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/")
+async def root():
+    return {"message": "Medicine Delivery API running! Visit /docs for Swagger UI"}
+
 @app.post("/patients/", response_model=Patient)
 async def create_patient(
     patient: Patient,
@@ -132,6 +136,28 @@ async def create_delivery(
 async def list_deliveries():
     return deliveries_db
 
-@app.get("/")
-async def root():
-    return {"message": "Medicine Delivery API running! Visit /docs for Swagger UI"}
+@app.put("/deliveries/{delivery_id}", response_model=Delivery)
+async def update_delivery(
+    delivery_id: int,
+    update: Delivery,
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    for i, existing in enumerate(deliveries_db):
+        if existing["id"] == delivery_id:
+            updated = {**existing, **update.dict(exclude_unset=True)}
+            deliveries_db[i] = updated
+            save_data(deliveries_db, DELIVERIES_FILE)
+            return updated
+    raise HTTPException(status_code=404, detail="Delivery not found")
+
+@app.delete("/deliveries/{delivery_id}")
+async def delete_delivery(
+    delivery_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    for i, delivery in enumerate(deliveries_db):
+        if delivery["id"] == delivery_id:
+            deliveries_db.pop(i)
+            save_data(deliveries_db, DELIVERIES_FILE)
+            return {"message": f"Delivery {delivery_id} deleted successfully"}
+    raise HTTPException(status_code=404, detail="Delivery not found")
