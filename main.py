@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Annotated
 from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, status # type: ignore
@@ -14,7 +15,8 @@ from dotenv import load_dotenv # type: ignore
 from models import Patient, Delivery, Invoice, PatientUpdate, DeliveryUpdate
 from database import patients_db, deliveries_db, next_delivery_id, next_patient_id, save_data, PATIENTS_FILE, DELIVERIES_FILE
 
-load_dotenv()
+env_path = Path(__file__).resolve().parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
