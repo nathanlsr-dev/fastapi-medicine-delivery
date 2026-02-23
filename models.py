@@ -18,3 +18,14 @@ class Delivery(BaseModel):
     invoice: Invoice
     delivery_date: Optional[datetime] = None
     status: str = "Pending"  # Pending, In Progress, Delivered, Cancelled
+
+class PatientUpdate(BaseModel):
+    name: Optional[str] = None
+    health_card_number: Optional[str] = None
+    address: Optional[str] = None
+
+class DeliveryUpdate(BaseModel):
+    patient_id: Optional[int] = None
+    invoice: Optional[Invoice] = None
+    delivery_date: Optional[datetime] = None
+    status: Optional[str] = None    
