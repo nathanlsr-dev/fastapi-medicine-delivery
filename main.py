@@ -1,22 +1,33 @@
 import os
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Annotated
-from typing import Optional
-from fastapi import FastAPI, Depends, HTTPException, status # type: ignore
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # type: ignore
-from fastapi.middleware.cors import CORSMiddleware # type: ignore
-from sqlalchemy.orm import Session
-from db import get_db, PatientDB, DeliveryDB
-from pydantic import BaseModel # type: ignore
-from passlib.context import CryptContext # type: ignore
-from jose import JWTError, jwt # type: ignore
-from dotenv import load_dotenv # type: ignore
-from models import Patient, Delivery, Invoice, PatientUpdate, DeliveryUpdate
-from database import patients_db, deliveries_db, next_delivery_id, next_patient_id, save_data, PATIENTS_FILE, DELIVERIES_FILE
+from typing import Annotated, Optional
 
-env_path = Path(__file__).resolve().parent / '.env'
-load_dotenv(dotenv_path=env_path)
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Body, Path
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from dotenv import load_dotenv
+
+from db import get_db, PatientDB, DeliveryDB, Base
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import create_engine
+from models import Patient, Delivery, Invoice, PatientUpdate, DeliveryUpdate
+from database import patients_db, deliveries_db, next_patient_id, next_delivery_id, save_data, PATIENTS_FILE, DELIVERIES_FILE
+
+load_dotenv()  # Mantém isso simples — ele procura .env na raiz automaticamente
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not set in environment variables")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+Base.metadata.create_all(bind=engine)
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -31,6 +42,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 if not ADMIN_PASSWORD:
     raise ValueError("ADMIN_PASSWORD not set in environment variables")
+
 
 fake_users_db = {
     "admin": {
@@ -78,6 +90,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     return user
 
+def get_db_dependency():
+    return Depends(get_db, use_cache=False)
+
+
 app = FastAPI(title="Medicine Delivery API")
 
 app.add_middleware(
@@ -113,7 +129,7 @@ async def root():
 async def create_patient(
     patient: Patient,
     current_user: Annotated[dict, Depends(get_current_user)],
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]  # <--- Annotated esconde do Swagger
 ):
     db_patient = PatientDB(**patient.dict())
     db.add(db_patient)
@@ -123,111 +139,87 @@ async def create_patient(
     return patient
 
 @app.get("/patients/")
-async def list_patients():
-    return patients_db
+async def list_patients(db: Session = Depends(lambda: next(get_db(SessionLocal())))):
+    return db.query(PatientDB).all()
+
+@app.put("/patients/{patient_id}", response_model=Patient)
+async def update_patient(
+    patient_id: int,
+    update_data: PatientUpdate,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    db_patient = db.query(PatientDB).filter(PatientDB.id == patient_id).first()
+    if db_patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
+    for key, value in update_dict.items():
+        setattr(db_patient, key, value)
+    
+    db.commit()
+    db.refresh(db_patient)
+    return Patient(id=db_patient.id, name=db_patient.name, health_card_number=db_patient.health_card_number, address=db_patient.address)
+
+@app.delete("/patients/{patient_id}")
+async def delete_patient(
+    patient_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    db_patient = db.query(PatientDB).filter(PatientDB.id == patient_id).first()
+    if db_patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    db.delete(db_patient)
+    db.commit()
+    return {"message": f"Patient {patient_id} deleted successfully"}
 
 @app.post("/deliveries/", response_model=Delivery)
 async def create_delivery(
     delivery: Delivery,
     current_user: Annotated[dict, Depends(get_current_user)],
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
 ):
     db_delivery = DeliveryDB(**delivery.dict())
     db.add(db_delivery)
     db.commit()
     db.refresh(db_delivery)
-    delivery.id = db_delivery.id    
-    return delivery
+    delivery.id = db_delivery.id
+    return delivery    
+    
 
 @app.get("/deliveries/")
 async def list_deliveries(
-    patient_id: Optional[int] = None,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    patient_id: Optional[int] = None,   
     status: Optional[str] = None,
     emission_date_from: Optional[datetime] = None,
     emission_date_to: Optional[datetime] = None,
     delivery_date_from: Optional[datetime] = None,
     delivery_date_to: Optional[datetime] = None,
     skip: int = 0,
-    limit: int = 10
+    limit: int = 10,
 ):
-    filtered = deliveries_db
+    query = db.query(DeliveryDB)
     
-    # Filtro por paciente
     if patient_id is not None:
-        filtered = [d for d in filtered if d["patient_id"] == patient_id]
+        query = query.filter(DeliveryDB.patient_id == patient_id)
     
-    # Filtro por status
     if status is not None:
-        filtered = [d for d in filtered if d["status"] == status]
+        query = query.filter(DeliveryDB.status == status)
     
-    # Filtro por data de emissão da nota fiscal
     if emission_date_from is not None:
-        filtered = [d for d in filtered if datetime.fromisoformat(d["invoice"]["emission_date"]) >= emission_date_from]
+        query = query.filter(DeliveryDB.invoice_emission_date >= emission_date_from)
     
     if emission_date_to is not None:
-        filtered = [d for d in filtered if datetime.fromisoformat(d["invoice"]["emission_date"]) <= emission_date_to]
+        query = query.filter(DeliveryDB.invoice_emission_date <= emission_date_to)
     
-    # Filtro por data de entrega
     if delivery_date_from is not None:
-        filtered = [d for d in filtered if d["delivery_date"] and datetime.fromisoformat(d["delivery_date"]) >= delivery_date_from]
+        query = query.filter(DeliveryDB.delivery_date >= delivery_date_from)
     
     if delivery_date_to is not None:
-        filtered = [d for d in filtered if d["delivery_date"] and datetime.fromisoformat(d["delivery_date"]) <= delivery_date_to]
+        query = query.filter(DeliveryDB.delivery_date <= delivery_date_to)
     
-    # Paginação
-    return filtered[skip:skip + limit]
-
-@app.put("/patients/{patient_id}", response_model=Patient)
-async def update_patient(
-    patient_id: int,
-    update_data: PatientUpdate,
-    current_user: Annotated[dict, Depends(get_current_user)]
-):
-    for i, existing in enumerate(patients_db):
-        if existing["id"] == patient_id:
-            update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
-            updated = {**existing, **update_dict}
-            patients_db[i] = updated
-            save_data(patients_db, PATIENTS_FILE)
-            return updated
-    raise HTTPException(status_code=404, detail="Patient not found")
-
-
-@app.put("/deliveries/{delivery_id}", response_model=Delivery)
-async def update_delivery(
-    delivery_id: int,
-    update_data: DeliveryUpdate,
-    current_user: Annotated[dict, Depends(get_current_user)]
-):
-    for i, existing in enumerate(deliveries_db):
-        if existing["id"] == delivery_id:
-            update_dict = update_data.dict(exclude_unset=True, exclude_none=True)
-            updated = {**existing, **update_dict}
-            deliveries_db[i] = updated
-            save_data(deliveries_db, DELIVERIES_FILE)
-            return updated
-    raise HTTPException(status_code=404, detail="Delivery not found")
-
-@app.delete("/patients/{patient_id}")
-async def delete_patient(
-    patient_id: int,
-    current_user: Annotated[dict, Depends(get_current_user)]
-):
-    for i, patient in enumerate(patients_db):
-        if patient["id"] == patient_id:
-            patients_db.pop(i)
-            save_data(patients_db, PATIENTS_FILE)
-            return {"message": f"Patient {patient_id} deleted successfully"}
-    raise HTTPException(status_code=404, detail="Patient not found")
-
-@app.delete("/deliveries/{delivery_id}")
-async def delete_delivery(
-    delivery_id: int,
-    current_user: Annotated[dict, Depends(get_current_user)]
-):
-    for i, delivery in enumerate(deliveries_db):
-        if delivery["id"] == delivery_id:
-            deliveries_db.pop(i)
-            save_data(deliveries_db, DELIVERIES_FILE)
-            return {"message": f"Delivery {delivery_id} deleted successfully"}
-    raise HTTPException(status_code=404, detail="Delivery not found")
+    return query.offset(skip).limit(limit).all()

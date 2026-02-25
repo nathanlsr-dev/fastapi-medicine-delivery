@@ -22,6 +22,7 @@ def load_data(file_path: str) -> List[Dict[str, Any]]:
             return []
 
 def convert_dates(obj: Any) -> Any:
+    """Converte datetime para string ISO recursivamente"""
     if isinstance(obj, dict):
         return {k: convert_dates(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -31,11 +32,7 @@ def convert_dates(obj: Any) -> Any:
     return obj
 
 def save_data(data: List[Dict[str, Any]], file_path: str):
-    serializable_data = convert_dates(data)
-    with open(file_path, "w") as f:
-        json.dump(serializable_data, f, indent=2)
-    print(f"Data saved to {file_path}")
-    
+    """Salva dados convertendo datetime para string"""
     serializable_data = convert_dates(data)
     with open(file_path, "w") as f:
         json.dump(serializable_data, f, indent=2)
