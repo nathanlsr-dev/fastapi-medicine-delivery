@@ -29,11 +29,13 @@ FastAPI + PostgreSQL + JWT — Portfolio & Enterprise Ready!
 **With Docker (recommended for company):**
 ```bash
 docker-compose up --build
+```
 
 **Local:**
 ```bash
 python -m pip install -r requirements.txt
 python -m uvicorn main:app --reload
+```
 
 **Access: http://127.0.0.1:8000/docs**
 
