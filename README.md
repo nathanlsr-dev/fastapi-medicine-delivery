@@ -1,32 +1,50 @@
-# Medicine Delivery API
+# 🚀 Medicine Delivery API
 
-A simple, secure, and scalable RESTful API for managing medicine deliveries, built with **FastAPI** (Python). This project demonstrates CRUD operations, JWT authentication, environment variable security, CORS support, and JSON persistence (with future plans for PostgreSQL migration).
+**Complete patient registration and medicine delivery management system**  
+FastAPI + PostgreSQL + JWT — Portfolio & Enterprise Ready!
 
-## Features
-- **JWT Authentication** (login with username/password)
-- **Protected Endpoints** (create/update/delete deliveries require auth)
-- **Patient Management** (create/list patients)
-- **Delivery Management** (create/list/update deliveries with status tracking)
-- **Invoice Integration** (nota fiscal number and emission date)
-- **Environment Variables** for secrets (no hardcoded passwords/keys)
-- **CORS** enabled for frontend integration
-- **Interactive Swagger Docs** at `/docs`
-- Deployed on Render (live demo below)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-## Tech Stack
-- Python 3.12
-- FastAPI (modern, fast, high-performance API framework)
-- Pydantic (data validation and serialization)
-- Passlib + python-jose (JWT authentication with bcrypt)
-- python-dotenv (load environment variables from .env)
-- JSON file persistence (temporary, will migrate to PostgreSQL + SQLAlchemy)
+### ✨ Features
+- Full Patient CRUD
+- Medicine Delivery tracking with invoice
+- Advanced filters (patient, status, dates, pagination)
+- Secure JWT authentication
+- Relational PostgreSQL database (1:N)
+- Ready for production and sale
 
-## Live Demo
-- **Swagger UI (interactive docs)**: https://fastapi-medicine-delivery.onrender.com/docs (use username: `admin`, password from environment)
-- **API Root**: https://fastapi-medicine-delivery.onrender.com/
+### 🛠 Technologies
+- FastAPI 0.115+
+- SQLAlchemy 2.0
+- PostgreSQL
+- Pydantic v2
+- JWT + bcrypt
+- Docker & docker-compose
 
-## Local Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/nathanlsr-dev/fastapi-medicine-delivery.git
-   cd fastapi-medicine-delivery
+### 🚀 How to Run
+
+**With Docker (recommended for company):**
+```bash
+docker-compose up --build
+
+**Local:**
+```bash
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload
+
+**Access: http://127.0.0.1:8000/docs**
+
+**Login: admin / admin123**
+
+### 🐳 Docker Compose 
+- Includes API + PostgreSQL with persistent data.
+
+### 🌐 Live Demo
+- https://fastapi-medicine-delivery.onrender.com/docs
+
+### 💼 For Sale / Customization
+Perfect for pharmacies or clinics.
+Contact: nathanlsr@outlook.com
