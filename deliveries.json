@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "patient_id": 1,
+    "invoice": {
+      "number": "NF123456",
+      "emission_date": "2026-02-20T08:22:10"
+    },
+    "delivery_date": "2026-02-23T01:42:24",
+    "status": "Delivered"
+  },
+  {
+    "id": 2,
+    "patient_id": 0,
+    "invoice": {
+      "number": "NF22345",
+      "emission_date": "2026-02-19T18:13:22"
+    },
+    "delivery_date": "2026-02-21T05:23:41",
+    "status": "Delivered"
+  },
+  {
+    "id": 3,
+    "patient_id": 2,
+    "invoice": {
+      "number": "NF190991",
+      "emission_date": "2026-02-10T01:56:59"
+    },
+    "delivery_date": "2026-02-23T15:10:22",
+    "status": "Pending"
+  },
+  {
+    "id": 4,
+    "patient_id": 2,
+    "invoice": {
+      "number": "NF190123",
+      "emission_date": "2026-02-23T03:28:50.442000+00:00"
+    },
+    "delivery_date": null,
+    "status": "Pending"
+  }
+]
