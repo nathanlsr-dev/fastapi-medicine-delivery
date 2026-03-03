@@ -134,11 +134,14 @@ class PatientAdmin(ModelView, model=PatientDB):
     icon = "fa-solid fa-user"
 
 class DeliveryAdmin(ModelView, model=DeliveryDB):
-    column_list = ["id", "patient_id", "invoice_number", "invoice_emission_date", "delivery_date", "status"]
+    column_list = ["id", "patient", "invoice_number", "invoice_emission_date", "delivery_date", "status"]
     column_searchable_list = ["invoice_number"]
     column_sortable_list = ["id", "delivery_date", "status"]
     name_plural = "Deliveries"
     icon = "fa-solid fa-truck"
+
+    form_columns = ["patient", "invoice_number", "invoice_emission_date", "delivery_date", "status"]
+    column_labels = {"patient": "Patient"}
 
 admin.add_view(PatientAdmin)
 admin.add_view(DeliveryAdmin)

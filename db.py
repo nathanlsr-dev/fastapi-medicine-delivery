@@ -25,6 +25,8 @@ class PatientDB(Base):
     name = Column(String, index=True, nullable=False)
     health_card_number = Column(String, unique=True, index=True, nullable=False)
     address = Column(String, nullable=False)
+    def __str__(self):
+        return f"{self.name} - {self.health_card_number}"
 
 class DeliveryDB(Base):
     __tablename__ = "deliveries"
