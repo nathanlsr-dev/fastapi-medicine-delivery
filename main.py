@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 # Database
-from db import get_db, PatientDB, DeliveryDB
+from db import get_db, PatientDB, DeliveryDB, engine
 from sqlalchemy.orm import Session
 
 # Schemas
@@ -16,6 +16,10 @@ from models import Patient, Delivery, Invoice, PatientUpdate, DeliveryUpdate
 
 # JWT
 from jose import jwt, JWTError
+from sqladmin import Admin, ModelView
+from sqladmin.authentication import AuthenticationBackend
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 load_dotenv()
 
@@ -89,11 +93,56 @@ app = FastAPI(
     description="Complete patient registration and medicine delivery management system - Portfolio & Enterprise Ready",
     version="1.0.0",
     contact={
-        "name": "Nathan LS Rodrigues",
-        "email": "nathanlsr.dev@gmail.com",
+        "name": "Nathan LSR",
+        "email": "nathanlsr@outlook.com",
     },
     swagger_ui_parameters={"defaultModelsExpandDepth": -1},
 )
+
+class AdminAuth(AuthenticationBackend):
+    async def login(self, request: Request) -> bool:
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+
+        if username == "admin" and password == ADMIN_PASSWORD:
+            # Salva na sessão que está logado
+            request.session.update({"authenticated": True})
+            return True
+        return False
+
+    async def logout(self, request: Request) -> bool:
+        request.session.clear()
+        return True
+
+    async def authenticate(self, request: Request) -> bool:
+        return request.session.get("authenticated", False)
+
+# Cria o painel admin com autenticação
+admin = Admin(
+    app,
+    engine,
+    title="Medicine Delivery - Admin Panel",
+    authentication_backend=AdminAuth(secret_key=SECRET_KEY),
+)
+
+class PatientAdmin(ModelView, model=PatientDB):
+    column_list = ["id", "name", "health_card_number", "address"]
+    column_searchable_list = ["name", "health_card_number"]
+    column_sortable_list = ["id", "name"]
+    name_plural = "Patients"
+    icon = "fa-solid fa-user"
+
+class DeliveryAdmin(ModelView, model=DeliveryDB):
+    column_list = ["id", "patient_id", "invoice_number", "invoice_emission_date", "delivery_date", "status"]
+    column_searchable_list = ["invoice_number"]
+    column_sortable_list = ["id", "delivery_date", "status"]
+    name_plural = "Deliveries"
+    icon = "fa-solid fa-truck"
+
+admin.add_view(PatientAdmin)
+admin.add_view(DeliveryAdmin)
+
 
 app.add_middleware(
     CORSMiddleware,
